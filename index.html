@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lead Router</title>
+  <meta name="description" content="Score, qualify, and route B2B leads from a CSV — entirely in your browser.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a78d6'/%3E%3Cpath d='M8 9h16l-6 7v6l-4 2v-8z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M8 9h16l-6 7v6l-4 2v-8z"/></svg>
+      <div>
+        <h1>Lead Router</h1>
+        <p class="tagline">Score, qualify, and route leads — all in your browser.</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span id="dataset-label" class="dataset-label">Sample data · 50 leads</span>
+      <label class="btn btn-primary" for="file-input">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10M5.5 7.5 10 3l4.5 4.5M4 14v2.5h12V14"/></svg>
+        Upload CSV
+      </label>
+      <input id="file-input" type="file" accept=".csv,text/csv" hidden>
+      <button id="load-sample" class="btn">Load sample</button>
+      <button id="download-sample" class="btn btn-ghost" title="Download the sample CSV to see the expected format">Sample CSV</button>
+    </div>
+  </header>
+
+  <div id="drop-overlay" class="drop-overlay" hidden><div>Drop CSV to load leads</div></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <main class="layout">
+    <aside class="panel rules" aria-label="Scoring and routing rules">
+      <div class="panel-head">
+        <h2>Rules</h2>
+        <button id="reset-rules" class="btn btn-ghost btn-sm">Reset</button>
+      </div>
+
+      <section class="rule-group">
+        <div class="threshold">
+          <div class="threshold-row">
+            <label for="threshold">MQL threshold</label>
+            <output id="threshold-out">50</output>
+          </div>
+          <input id="threshold" type="range" min="0" max="120" step="1">
+          <p class="hint">Leads scoring <strong>at or above</strong> this are MQLs and get routed to a rep.</p>
+        </div>
+      </section>
+
+      <details class="rule-group" open>
+        <summary>Title seniority</summary>
+        <p class="hint">First matching tier wins. Keywords are comma-separated, case-insensitive.</p>
+        <div id="title-rules" class="rule-list"></div>
+      </details>
+
+      <details class="rule-group" open>
+        <summary>Company size</summary>
+        <div id="size-rules" class="rule-list"></div>
+      </details>
+
+      <details class="rule-group" open>
+        <summary>Target industries</summary>
+        <p class="hint">Check industries you target; each gets its own points.</p>
+        <div id="industry-rules" class="rule-list"></div>
+      </details>
+
+      <details class="rule-group" open>
+        <summary>Lead source</summary>
+        <div id="source-rules" class="rule-list"></div>
+      </details>
+
+      <details class="rule-group">
+        <summary>Routing</summary>
+        <p class="hint">Segment by employee count. Territory by state.</p>
+        <div class="seg-bounds">
+          <label>Mid-Market from <input id="mm-min" type="number" min="1" step="1"> employees</label>
+          <label>Enterprise from <input id="ent-min" type="number" min="1" step="1"> employees</label>
+        </div>
+        <div id="territory-rules" class="territory-list"></div>
+        <h3 class="subhead">Rep assignments</h3>
+        <div id="rep-grid" class="rep-grid"></div>
+      </details>
+    </aside>
+
+    <section class="content">
+      <div class="kpis" id="kpis"></div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Funnel</h2>
+            <p class="panel-sub">Total leads → MQLs → MQLs routed to each rep</p>
+          </div>
+        </div>
+        <div id="funnel" class="funnel" role="img" aria-label="Lead funnel chart"></div>
+        <div id="funnel-tip" class="tooltip" hidden></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head table-head">
+          <div>
+            <h2>Leads</h2>
+            <p class="panel-sub" id="table-count"></p>
+          </div>
+          <div class="table-tools">
+            <input id="search" type="search" placeholder="Search name, company, title…" aria-label="Search leads">
+            <select id="filter-status" aria-label="Filter by status">
+              <option value="all">All leads</option>
+              <option value="mql">MQLs only</option>
+              <option value="nurture">Nurture only</option>
+            </select>
+            <select id="filter-rep" aria-label="Filter by rep"></select>
+            <button id="export" class="btn btn-sm">Export CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="results">
+            <thead>
+              <tr>
+                <th data-key="name">Name</th>
+                <th data-key="company">Company</th>
+                <th data-key="title">Title</th>
+                <th data-key="score" class="num">Score</th>
+                <th data-key="mql">Status</th>
+                <th data-key="rep">Routed to</th>
+                <th data-key="segment">Segment</th>
+                <th data-key="territory">Territory</th>
+                <th data-key="size" class="num">Size</th>
+                <th data-key="industry">Industry</th>
+                <th data-key="source">Source</th>
+                <th data-key="state">State</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Everything runs locally — your CSV never leaves the browser.
+    Expected columns: <code>name, title, company, company_size, industry, lead_source, state</code>
+  </footer>
+
+  <script src="sample-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
